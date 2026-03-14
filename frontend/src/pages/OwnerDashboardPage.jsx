@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { createCategoryBySlug, deleteCategoryBySlug, fetchCategoriesBySlug } from '../api/categoryApi.js';
 import { createProductBySlug, fetchProductsBySlug, updateProductStatusBySlug } from '../api/productApi.js';
 import { createTableBySlug, deleteTableBySlug, fetchTablesBySlug } from '../api/tableApi.js';
+import { createUserBySlug, fetchUsersBySlug, updateUserStatusBySlug } from '../api/userApi.js';
 import CustomerLayout from '../layouts/CustomerLayout.jsx';
 import useAuthStore from '../store/authStore.js';
 
@@ -15,9 +16,16 @@ function OwnerDashboardPage() {
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [tables, setTables] = useState([]);
+  const [staffAccounts, setStaffAccounts] = useState([]);
   const [error, setError] = useState('');
   const [categoryName, setCategoryName] = useState('');
   const [tableNumber, setTableNumber] = useState('');
+  const [staffForm, setStaffForm] = useState({
+    email: '',
+    password: '',
+    full_name: '',
+    role: 'staff',
+  });
   const [productForm, setProductForm] = useState({
     category_id: '',
     name: '',
@@ -33,9 +41,11 @@ function OwnerDashboardPage() {
         fetchProductsBySlug(slug, token),
         fetchTablesBySlug(slug, token),
       ]);
+      const userData = await fetchUsersBySlug(slug, token);
       setCategories(Array.isArray(categoryData) ? categoryData : []);
       setProducts(Array.isArray(productData) ? productData : []);
       setTables(Array.isArray(tableData) ? tableData : []);
+      setStaffAccounts(Array.isArray(userData) ? userData : []);
     } catch (apiError) {
       setError(apiError?.response?.data?.message || 'Failed to load owner dashboard data.');
     }
@@ -121,6 +131,43 @@ function OwnerDashboardPage() {
       refreshData();
     } catch (apiError) {
       setError(apiError?.response?.data?.message || 'Failed to delete table.');
+    }
+  }
+
+  async function handleCreateStaffAccount(event) {
+    event.preventDefault();
+    if (!staffForm.email.trim() || !staffForm.password || !staffForm.full_name.trim()) {
+      setError('Please fill email, password, and full name for staff account.');
+      return;
+    }
+
+    try {
+      setError('');
+      await createUserBySlug(
+        slug,
+        {
+          email: staffForm.email.trim(),
+          password: staffForm.password,
+          full_name: staffForm.full_name.trim(),
+          role: staffForm.role,
+        },
+        token
+      );
+      setStaffForm({ email: '', password: '', full_name: '', role: 'staff' });
+      refreshData();
+    } catch (apiError) {
+      setError(apiError?.response?.data?.message || 'Failed to create staff account.');
+    }
+  }
+
+  async function handleToggleStaffStatus(user) {
+    try {
+      setError('');
+      const nextStatus = user.status === 'active' ? 'inactive' : 'active';
+      await updateUserStatusBySlug(slug, user._id, nextStatus, token);
+      refreshData();
+    } catch (apiError) {
+      setError(apiError?.response?.data?.message || 'Failed to update staff status.');
     }
   }
 
@@ -229,6 +276,67 @@ function OwnerDashboardPage() {
                 </div>
                 <button type="button" onClick={() => toggleProductStatus(product)} className="rounded-lg border border-gray-300 px-2 py-1 text-xs font-bold">
                   {product.status === 'active' ? 'Mark out_of_stock' : 'Mark active'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="glass-card mt-5 rounded-2xl p-4">
+          <h2 className="font-display text-xl font-bold">Staff Accounts</h2>
+          <form onSubmit={handleCreateStaffAccount} className="mt-3 grid gap-2 md:grid-cols-4">
+            <input
+              value={staffForm.email}
+              onChange={(event) => setStaffForm((state) => ({ ...state, email: event.target.value }))}
+              placeholder="Email"
+              type="email"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              required
+            />
+            <input
+              value={staffForm.password}
+              onChange={(event) => setStaffForm((state) => ({ ...state, password: event.target.value }))}
+              placeholder="Password"
+              type="password"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              minLength={6}
+              required
+            />
+            <input
+              value={staffForm.full_name}
+              onChange={(event) => setStaffForm((state) => ({ ...state, full_name: event.target.value }))}
+              placeholder="Full name"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              required
+            />
+            <div className="flex gap-2">
+              <select
+                value={staffForm.role}
+                onChange={(event) => setStaffForm((state) => ({ ...state, role: event.target.value }))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="staff">Staff</option>
+                <option value="kitchen">Kitchen</option>
+              </select>
+              <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white">
+                Add
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-3 space-y-2">
+            {staffAccounts.map((user) => (
+              <div key={user._id} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                <div>
+                  <p className="text-sm font-semibold">{user.full_name} ({user.role})</p>
+                  <p className="text-xs text-gray-600">{user.email} | {user.status}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleToggleStaffStatus(user)}
+                  className="rounded-lg border border-gray-300 px-2 py-1 text-xs font-bold"
+                >
+                  {user.status === 'active' ? 'Set inactive' : 'Set active'}
                 </button>
               </div>
             ))}

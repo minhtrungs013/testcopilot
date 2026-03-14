@@ -8,6 +8,7 @@ import categoryRoutes from './category.routes.js';
 import tableRoutes from './table.routes.js';
 import paymentRoutes from './payment.routes.js';
 import menuRoutes from './menu.routes.js';
+import userRoutes from './user.routes.js';
 import tenantMiddleware from '../middlewares/tenant.middleware.js';
 
 const router = express.Router();
@@ -20,5 +21,6 @@ router.use('/:slug/categories', tenantMiddleware, categoryRoutes);
 router.use('/:slug/tables', tenantMiddleware, tableRoutes);
 router.use('/:slug/payments', tenantMiddleware, paymentRoutes);
 router.use('/:slug/menu', tenantMiddleware, menuRoutes);
+router.use('/:slug/users', tenantMiddleware, userRoutes);
 
 export default router;
