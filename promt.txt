@@ -1,0 +1,608 @@
+Tech stack:
+Frontend:
+React
+TailwindCSS
+Zustand
+Axios
+Socket.io client
+Backend:
+Node.js
+Express
+MongoDB
+Mongoose
+Socket.io
+JWT authentication
+Project architecture must be scalable.
+Backend folder structure:
+src/
+controllers
+services
+models
+routes
+middlewares
+sockets
+utils
+config
+
+Frontend folder structure:
+src/
+api
+pages
+components
+hooks
+store(redux toolkit)
+layouts
+routes
+ 
+ 
+Giai đoạn nền tảng (bắt buộc trước)
+
+Multi-tenant DB
+
+Auth + role
+
+Tenant middleware
+
+Core menu system
+
+Order realtime
+
+Admin dashboards
+
+PHASE 1 — FOUNDATION (Multi-tenant core)
+Prompt 1 — MongoDB multi-tenant schema
+Viết
+
+Create production-ready Mongoose schemas for a multi-tenant restaurant SaaS ordering platform using JavaScript.
+
+Requirements:
+
+Main collection: tenants
+
+tenants schema:
+
+name
+
+slug (unique)
+
+owner_name
+
+phone
+
+address
+
+plan
+
+status
+
+timestamps
+
+plan enum:
+
+free
+
+basic
+
+pro
+
+status enum:
+
+active
+
+suspended
+
+All collections must include tenant_id reference:
+
+users
+
+tables
+
+categories
+
+products
+
+orders
+
+payments
+
+users schema:
+
+tenant_id
+
+full_name
+
+email
+
+password
+
+role
+
+status
+
+role enum:
+
+super_admin
+
+tenant_owner
+
+staff
+
+kitchen
+
+status enum:
+
+active
+
+inactive
+
+tables schema:
+
+tenant_id
+
+table_number
+
+qr_code
+
+status
+
+categories schema:
+
+tenant_id
+
+name
+
+sort_order
+
+products schema:
+
+tenant_id
+
+category_id
+
+name
+
+description
+
+image
+
+price
+
+status
+
+options array
+
+orders schema:
+
+tenant_id
+
+table_id
+
+order_code
+
+status
+
+total_amount
+
+items embedded array
+
+note
+
+payments schema:
+
+tenant_id
+
+order_id
+
+method
+
+status
+
+Use indexes where necessary.
+
+Generate each schema in separate model files.
+
+Prompt 2 — Folder structure backend chuẩn scale
+Viết
+
+Generate scalable backend folder structure for multi-tenant SaaS ordering system using Node.js + Express + MongoDB + JavaScript.
+
+Folder structure:
+src/
+
+controllers
+
+services
+
+models
+
+routes
+
+middlewares
+
+sockets
+
+utils
+
+config
+
+Requirements:
+
+separate controller and service
+
+each module isolated:
+tenant
+auth
+product
+order
+category
+table
+payment
+
+Generate starter files and explain responsibilities.
+
+Prompt 3 — Tenant middleware (rất quan trọng)
+Viết
+
+Create tenant middleware for multi-tenant SaaS ordering platform.
+
+Requirements:
+
+Incoming URL example:
+domain.com/api/milk-tea-house/menu
+
+Steps:
+
+read tenant slug from params
+
+find tenant by slug
+
+verify tenant status active
+
+inject tenant_id into req.tenant
+
+If tenant not found:
+return 404
+
+If tenant suspended:
+return 403
+
+Use async middleware pattern.
+
+PHASE 2 — AUTH + ROLE SYSTEM
+Prompt 4 — Auth multi-role
+Viết
+
+Create JWT authentication system for multi-tenant ordering platform.
+
+Requirements:
+
+Login users:
+
+super_admin
+
+tenant_owner
+
+staff
+
+kitchen
+
+JWT payload:
+
+user_id
+
+tenant_id
+
+role
+
+Create:
+
+register tenant owner
+
+login
+
+password hashing using bcrypt
+
+auth middleware
+
+Use service layer.
+
+Prompt 5 — Role permission middleware
+Viết
+
+Create role permission middleware.
+
+Roles:
+
+super_admin
+
+tenant_owner
+
+staff
+
+kitchen
+
+Examples:
+tenant_owner can manage products
+staff can update orders
+kitchen can only view orders
+
+Middleware:
+authorize(["tenant_owner"])
+authorize(["staff","kitchen"])
+
+PHASE 3 — MENU SYSTEM
+Prompt 6 — Category CRUD tenant-safe
+Viết
+
+Build category CRUD APIs.
+
+Requirements:
+
+tenant-safe
+
+tenant_id always from req.tenant
+
+tenant_owner only
+
+APIs:
+POST /categories
+GET /categories
+PUT /categories/
+DELETE /categories/
+
+Each tenant only accesses own categories.
+
+Prompt 7 — Product CRUD tenant-safe
+Viết
+
+Build product CRUD APIs for multi-tenant restaurant SaaS.
+
+Requirements:
+
+tenant-safe
+
+product belongs to tenant
+
+product options embedded:
+[
+{ name, price }
+]
+
+Fields:
+
+category_id
+
+name
+
+description
+
+image
+
+price
+
+status
+
+status:
+
+active
+
+out_of_stock
+
+APIs:
+POST /products
+GET /products
+PUT /products/
+DELETE /products/
+
+PHASE 4 — QR ORDERING CORE
+Prompt 8 — QR menu customer API
+Viết
+
+Create customer menu API.
+
+URL:
+GET /api//menu
+
+Requirements:
+
+resolve tenant by slug
+
+return categories and products grouped
+
+exclude out_of_stock products
+
+mobile optimized response
+
+Prompt 9 — Order service production
+Viết
+
+Create orderService.js for multi-tenant restaurant ordering.
+
+Requirements:
+
+tenant-safe
+
+validate products belong to tenant
+
+validate product active
+
+generate unique order_code
+
+calculate total including options
+
+create order document
+
+Order item structure:
+{
+product_id,
+product_name,
+quantity,
+price,
+note,
+selected_options:[]
+}
+
+Status default:
+pending
+
+Prompt 10 — Order controller + API
+Viết
+
+Build order API.
+
+POST /orders
+
+Input:
+
+tenant_id from middleware
+
+table_id
+
+items
+
+Requirements:
+
+prevent duplicate submit
+
+return created order
+
+call socket event new-order
+
+PHASE 5 — REALTIME SOCKET
+Prompt 11 — Socket multi-tenant room
+Viết
+
+Build Socket.io tenant room system.
+
+Requirements:
+
+Each tenant joins:
+tenant_{tenant_id}
+
+Example:
+tenant_abc123
+
+Events:
+
+new-order
+
+update-order-status
+
+call-staff
+
+Orders from tenant A must never appear in tenant B.
+
+Prompt 12 — Staff realtime dashboard API
+Viết
+
+Create staff dashboard order API.
+
+GET /orders/pending
+
+Requirements:
+
+tenant-safe
+
+newest first
+
+group by table
+
+only pending and preparing orders
+
+PHASE 6 — SUPER ADMIN SaaS SYSTEM
+Prompt 13 — Super admin tenant management
+Viết
+
+Create super admin tenant management APIs.
+
+APIs:
+POST /tenants
+GET /tenants
+PUT /tenants//status
+
+Super admin can:
+
+create tenant
+
+suspend tenant
+
+activate tenant
+
+Tenant owner created automatically.
+
+Prompt 14 — Subscription system
+Viết
+
+Create subscriptions schema.
+
+Fields:
+
+tenant_id
+
+plan
+
+start_date
+
+end_date
+
+status
+
+plan:
+free
+basic
+pro
+
+status:
+active
+expired
+
+PHASE 7 — FRONTEND (sau backend xong)
+áp dụng responsive
+Prompt 15 — Customer menu React
+Viết
+
+Build React customer MenuPage.
+
+Requirements:
+
+fetch menu by tenant slug
+
+category tabs
+
+product cards
+
+mobile-first
+
+add to cart
+
+Prompt 16 — Cart system
+Viết
+
+Build CartPage using Zustand.
+
+Requirements:
+
+localStorage persist
+
+quantity update
+
+remove item
+
+calculate total
+
+submit order
+
+Prompt 17 — Staff dashboard realtime
+Viết
+
+Build staff realtime dashboard.
+
+Requirements:
+
+socket listen new-order
+
+newest first
+
+update order status
+
+table number visible

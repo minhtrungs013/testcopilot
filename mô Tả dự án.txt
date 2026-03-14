@@ -1,0 +1,339 @@
+Website là một nền tảng SaaS multi-tenant cho phép nhiều quán cafe, quán ăn, trà sữa hoặc nhà hàng nhỏ sử dụng chung một hệ thống order tại bàn bằng QR code.
+
+Mỗi quán là một tenant độc lập trong hệ thống.
+
+Mỗi tenant có dữ liệu riêng:
+
+* menu riêng
+* bàn riêng
+* nhân viên riêng
+* đơn hàng riêng
+* lịch sử thanh toán riêng
+
+Hệ thống có 4 nhóm người dùng chính:
+
+1. Super Admin (quản trị toàn hệ thống)
+2. Tenant Owner (chủ quán)
+3. Staff / Kitchen (nhân viên quán)
+4. Customer (khách hàng order)
+
+---
+
+## I. CUSTOMER FLOW (KHÁCH HÀNG)
+
+Khách hàng đến quán.
+
+Trên mỗi bàn có QR code riêng.
+
+Ví dụ QR:
+https://domain.com/milk-tea-house/table/5
+
+Sau khi quét QR:
+
+* website mở đúng menu của quán
+* nhận biết đúng số bàn
+* không cần đăng nhập
+* giao diện tối ưu cho điện thoại
+
+Khách có thể:
+
+1. Xem menu theo category:
+
+* Coffee
+* Milk Tea
+* Fast Food
+* Dessert
+
+2. Xem chi tiết sản phẩm:
+
+* hình ảnh
+* giá
+* mô tả
+* trạng thái còn hàng / hết hàng
+
+3. Chọn option:
+
+* size
+* topping
+* sugar level
+* ice level
+
+Ví dụ:
+Milk Tea
+
+* Size L
+* Less sugar
+* Extra pearl
+
+4. Ghi chú riêng:
+
+* no ice
+* less sweet
+* no onion
+
+5. Add to cart
+
+6. Chỉnh sửa cart:
+
+* tăng số lượng
+* giảm số lượng
+* xóa món
+
+7. Submit order
+
+Sau khi submit:
+
+* order được tạo
+* staff nhận realtime
+* khách nhận mã order
+
+Khách theo dõi trạng thái:
+
+* pending
+* confirmed
+* preparing
+* served
+
+Khách có thể:
+
+* gọi nhân viên
+* yêu cầu thanh toán
+
+---
+
+## II. STAFF FLOW (NHÂN VIÊN QUÁN)
+
+Nhân viên đăng nhập vào dashboard.
+
+Dashboard realtime hiển thị:
+
+* order mới nhất
+* số bàn
+* thời gian order
+* món order
+* note từng món
+
+Ví dụ:
+
+Table 5
+2 Milk Tea
+1 Coffee
+
+Milk Tea 1:
+
+* size L
+* extra pearl
+
+Milk Tea 2:
+
+* less sugar
+
+Coffee:
+
+* no sugar
+
+Staff thao tác:
+
+1. Confirm order
+2. Preparing
+3. Served
+4. Paid
+
+Mỗi thay đổi trạng thái:
+
+* update realtime cho customer
+
+Dashboard cần:
+
+* order mới nổi bật
+* âm thanh khi có đơn mới
+* lọc theo trạng thái
+* lọc theo bàn
+
+Kitchen mode:
+
+* chỉ thấy món cần làm
+* không cần thông tin thanh toán
+
+---
+
+## III. TENANT OWNER FLOW (CHỦ QUÁN)
+
+Chủ quán có dashboard riêng.
+
+Chức năng:
+
+1. Quản lý category
+
+* thêm category
+* sửa
+* xóa
+
+2. Quản lý sản phẩm
+
+* thêm món
+* sửa giá
+* upload ảnh
+* mark out_of_stock
+
+3. Quản lý option sản phẩm
+   Ví dụ:
+
+* size M
+* size L
+* topping
+
+4. Quản lý bàn
+
+* tạo bàn
+* sinh QR code cho từng bàn
+
+5. Quản lý nhân viên
+
+* tạo tài khoản staff
+* phân role
+
+6. Xem order history
+
+7. Xem báo cáo:
+
+* tổng số đơn
+* tổng doanh thu
+* món bán chạy
+
+---
+
+## IV. SUPER ADMIN FLOW (QUẢN TRỊ NỀN TẢNG)
+
+Super admin quản lý toàn hệ thống SaaS.
+
+Super admin nhìn thấy:
+
+1. Danh sách tenant:
+
+* Quán A
+* Quán B
+* Quán C
+
+2. Trạng thái tenant:
+
+* active
+* suspended
+
+3. Subscription plan:
+
+* free
+* basic
+* pro
+
+4. Quản lý thanh toán thuê bao
+
+5. Tạo tenant mới
+
+6. Reset tenant owner password
+
+7. Suspend tenant nếu hết hạn
+
+---
+
+## V. MULTI-TENANT ARCHITECTURE
+
+Mọi dữ liệu phải tách tenant tuyệt đối.
+
+Collections cần tenant_id:
+
+* users
+* tables
+* categories
+* products
+* orders
+* payments
+
+Ví dụ:
+
+Quán A không được thấy order quán B.
+
+Socket realtime cũng tách room:
+
+tenant_{tenant_id}
+
+Ví dụ:
+tenant_abc123
+tenant_xyz456
+
+---
+
+## VI. REALTIME ORDER SYSTEM
+
+Khi customer submit order:
+
+1. backend tạo order
+2. emit socket event new-order
+3. staff dashboard nhận ngay
+
+Event:
+
+* new-order
+* update-order-status
+* call-staff
+
+---
+
+## VII. PHASE 1 MVP
+
+Chỉ build:
+
+Customer:
+
+* menu
+* cart
+* submit order
+
+Staff:
+
+* realtime order dashboard
+* update status
+
+Owner:
+
+* CRUD products
+* CRUD categories
+
+Super admin:
+
+* create tenant
+
+Chưa build:
+
+* payment gateway
+* loyalty
+* AI recommendation
+* analytics nâng cao
+
+---
+
+## VIII. FUTURE SCALE
+
+Sau phase 1:
+
+Có thể mở rộng:
+
+1. Payment online
+2. Loyalty points
+3. Membership
+4. Multi-branch
+5. AI upsell recommendation
+6. White-label branding
+
+---
+
+## IX. GOAL
+
+Mục tiêu cuối cùng:
+
+Một codebase phục vụ nhiều quán cùng lúc.
+
+1 hệ thống
+100+ tenants
+
+Mỗi tenant hoạt động độc lập nhưng quản lý tập trung từ super admin.
