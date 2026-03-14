@@ -50,7 +50,6 @@ const tenantSchema = new mongoose.Schema(
   }
 );
 
-tenantSchema.index({ slug: 1 }, { unique: true });
 tenantSchema.index({ status: 1, plan: 1 });
 
 export default mongoose.model('Tenant', tenantSchema);

@@ -5,6 +5,8 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
+    "build": "node --check src/server.js",
+    "check": "powershell -NoProfile -Command \"Get-ChildItem -Path src -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }\"",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"
   },
