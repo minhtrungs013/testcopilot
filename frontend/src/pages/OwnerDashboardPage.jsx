@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 
 import { createCategoryBySlug, deleteCategoryBySlug, fetchCategoriesBySlug } from '../api/categoryApi.js';
 import { createProductBySlug, fetchProductsBySlug, updateProductStatusBySlug } from '../api/productApi.js';
+import { createTableBySlug, deleteTableBySlug, fetchTablesBySlug } from '../api/tableApi.js';
 import CustomerLayout from '../layouts/CustomerLayout.jsx';
 import useAuthStore from '../store/authStore.js';
 
@@ -13,8 +14,10 @@ function OwnerDashboardPage() {
 
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
+  const [tables, setTables] = useState([]);
   const [error, setError] = useState('');
   const [categoryName, setCategoryName] = useState('');
+  const [tableNumber, setTableNumber] = useState('');
   const [productForm, setProductForm] = useState({
     category_id: '',
     name: '',
@@ -25,12 +28,14 @@ function OwnerDashboardPage() {
   async function refreshData() {
     try {
       setError('');
-      const [categoryData, productData] = await Promise.all([
+      const [categoryData, productData, tableData] = await Promise.all([
         fetchCategoriesBySlug(slug, token),
         fetchProductsBySlug(slug, token),
+        fetchTablesBySlug(slug, token),
       ]);
       setCategories(Array.isArray(categoryData) ? categoryData : []);
       setProducts(Array.isArray(productData) ? productData : []);
+      setTables(Array.isArray(tableData) ? tableData : []);
     } catch (apiError) {
       setError(apiError?.response?.data?.message || 'Failed to load owner dashboard data.');
     }
@@ -81,6 +86,41 @@ function OwnerDashboardPage() {
       refreshData();
     } catch (apiError) {
       setError(apiError?.response?.data?.message || 'Failed to create product.');
+    }
+  }
+
+  async function handleCreateTable(event) {
+    event.preventDefault();
+    const numericTable = Number(tableNumber);
+    if (!Number.isInteger(numericTable) || numericTable <= 0) {
+      setError('Table number must be a positive integer.');
+      return;
+    }
+
+    try {
+      setError('');
+      await createTableBySlug(
+        slug,
+        {
+          table_number: numericTable,
+          status: 'available',
+        },
+        token
+      );
+      setTableNumber('');
+      refreshData();
+    } catch (apiError) {
+      setError(apiError?.response?.data?.message || 'Failed to create table.');
+    }
+  }
+
+  async function handleDeleteTable(tableId) {
+    try {
+      setError('');
+      await deleteTableBySlug(slug, tableId, token);
+      refreshData();
+    } catch (apiError) {
+      setError(apiError?.response?.data?.message || 'Failed to delete table.');
     }
   }
 
@@ -140,6 +180,41 @@ function OwnerDashboardPage() {
               <input value={productForm.price} onChange={(e) => setProductForm((s) => ({ ...s, price: e.target.value }))} placeholder="Price" type="number" min="0" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" required />
               <button type="submit" className="w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white">Create Product</button>
             </form>
+          </div>
+        </section>
+
+        <section className="glass-card mt-5 rounded-2xl p-4">
+          <h2 className="font-display text-xl font-bold">Tables</h2>
+          <form onSubmit={handleCreateTable} className="mt-3 flex gap-2">
+            <input
+              value={tableNumber}
+              onChange={(event) => setTableNumber(event.target.value)}
+              placeholder="Table number"
+              type="number"
+              min="1"
+              className="w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+            <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white">
+              Create Table
+            </button>
+          </form>
+
+          <div className="mt-3 space-y-2">
+            {tables.map((table) => (
+              <div key={table._id} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                <div>
+                  <p className="text-sm font-semibold">Table {table.table_number}</p>
+                  <p className="text-xs text-gray-600">QR: {table.qr_code}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTable(table._id)}
+                  className="rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-600"
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
           </div>
         </section>
 
