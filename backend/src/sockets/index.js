@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 
+import { corsOptions } from '../config/cors.js';
 import env from '../config/env.js';
 import { ROLES } from '../config/constants.js';
 import Tenant from '../models/tenant.model.js';
@@ -24,7 +25,10 @@ function extractToken(socket) {
 function createSocketServer(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: '*',
+      origin: corsOptions.origin,
+      methods: corsOptions.methods,
+      allowedHeaders: corsOptions.allowedHeaders,
+      credentials: corsOptions.credentials,
     },
   });
 
