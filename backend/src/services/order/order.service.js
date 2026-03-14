@@ -148,7 +148,7 @@ async function listPendingOrders(tenant) {
 
   const orders = await Order.find({
     tenant_id: tenantId,
-    status: { $in: ['pending', 'preparing'] },
+    status: { $in: ['pending', 'confirmed', 'preparing', 'served'] },
   })
     .sort({ createdAt: -1 })
     .populate('table_id', 'table_number')
@@ -191,14 +191,34 @@ async function updateOrderStatus(orderId, status, tenant) {
     throw new ApiError(400, 'Invalid order status.');
   }
 
+  const currentOrder = await Order.findOne({ _id: orderId, tenant_id: tenantId }).select('status');
+
+  if (!currentOrder) {
+    throw new ApiError(404, 'Order not found.');
+  }
+
+  const currentIndex = ORDER_STATUS_FLOW.indexOf(currentOrder.status);
+  const nextIndex = ORDER_STATUS_FLOW.indexOf(status);
+
+  if (currentIndex === -1 || nextIndex === -1) {
+    throw new ApiError(400, 'Invalid order status transition.');
+  }
+
+  if (nextIndex !== currentIndex + 1) {
+    throw new ApiError(
+      400,
+      `Invalid status transition. Allowed next status is ${ORDER_STATUS_FLOW[currentIndex + 1] || 'none'}.`
+    );
+  }
+
   const updated = await Order.findOneAndUpdate(
-    { _id: orderId, tenant_id: tenantId },
+    { _id: orderId, tenant_id: tenantId, status: currentOrder.status },
     { status },
     { new: true }
   );
 
   if (!updated) {
-    throw new ApiError(404, 'Order not found.');
+    throw new ApiError(409, 'Order status changed by another user. Please refresh and try again.');
   }
 
   return updated;

@@ -9,7 +9,16 @@ import useTenantSlug from '../hooks/useTenantSlug.js';
 import CustomerLayout from '../layouts/CustomerLayout.jsx';
 import useAuthStore from '../store/authStore.js';
 
-const STATUS_OPTIONS = ['confirmed', 'preparing', 'served', 'paid'];
+const ORDER_STATUS_FLOW = ['pending', 'confirmed', 'preparing', 'served', 'paid'];
+
+function getNextStatus(currentStatus) {
+  const currentIndex = ORDER_STATUS_FLOW.indexOf(currentStatus);
+  if (currentIndex === -1) {
+    return null;
+  }
+
+  return ORDER_STATUS_FLOW[currentIndex + 1] || null;
+}
 
 function parseJwtPayload(token) {
   const rawToken = String(token || '').replace(/^Bearer\s+/i, '').trim();
@@ -174,7 +183,7 @@ function StaffDashboardPage() {
         ) : null}
 
         {!loading && groups.length === 0 ? (
-          <div className="glass-card rounded-2xl p-5 text-sm text-gray-600">No pending or preparing orders.</div>
+          <div className="glass-card rounded-2xl p-5 text-sm text-gray-600">No pending, confirmed, preparing, or served orders.</div>
         ) : null}
 
         <section className="space-y-4">
@@ -213,18 +222,24 @@ function StaffDashboardPage() {
                     </ul>
 
                     {!isKitchen ? (
-                      <div className="flex flex-wrap gap-2">
-                        {STATUS_OPTIONS.map((status) => (
-                          <button
-                            key={`${order._id}-${status}`}
-                            type="button"
-                            onClick={() => handleUpdateStatus(order._id, status)}
-                            className="rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700"
-                          >
-                            Mark {status}
-                          </button>
-                        ))}
-                      </div>
+                      (() => {
+                        const nextStatus = getNextStatus(order.status);
+                        if (!nextStatus) {
+                          return <p className="text-xs font-semibold text-gray-500">No further action available.</p>;
+                        }
+
+                        return (
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateStatus(order._id, nextStatus)}
+                              className="rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700"
+                            >
+                              Mark {nextStatus}
+                            </button>
+                          </div>
+                        );
+                      })()
                     ) : (
                       <p className="text-xs font-semibold text-gray-500">Kitchen mode: view-only</p>
                     )}
