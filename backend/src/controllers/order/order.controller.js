@@ -101,8 +101,14 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   res.status(200).json(order);
 });
 
+const getOwnerOrderStats = asyncHandler(async (req, res) => {
+  const stats = await orderService.getOwnerOrderStats(req.tenant);
+  res.status(200).json(stats);
+});
+
 export default {
   createOrder,
   listPendingOrders,
   updateOrderStatus,
+  getOwnerOrderStats,
 };

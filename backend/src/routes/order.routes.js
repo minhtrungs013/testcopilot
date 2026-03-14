@@ -9,6 +9,7 @@ const router = express.Router();
 
 router.post('/', orderController.createOrder);
 router.use(authMiddleware);
+router.get('/stats', authorize([ROLES.TENANT_OWNER]), orderController.getOwnerOrderStats);
 router.get('/pending', authorize([ROLES.STAFF, ROLES.KITCHEN]), orderController.listPendingOrders);
 router.patch('/:orderId/status', authorize([ROLES.STAFF]), orderController.updateOrderStatus);
 

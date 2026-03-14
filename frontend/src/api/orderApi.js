@@ -33,3 +33,13 @@ export async function updateOrderStatusBySlug(slug, orderId, status, token) {
 
   return response.data;
 }
+
+export async function fetchOwnerOrderStatsBySlug(slug, token) {
+  const rawToken = toRawToken(token);
+  const response = await httpClient.get(`/${slug}/orders/stats`, {
+    headers: {
+      Authorization: `Bearer ${rawToken}`,
+    },
+  });
+  return response.data;
+}

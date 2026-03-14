@@ -4,7 +4,11 @@ import RoleProtectedRoute from '../components/RoleProtectedRoute.jsx';
 import CartPage from '../pages/CartPage.jsx';
 import LoginPage from '../pages/LoginPage.jsx';
 import MenuPage from '../pages/MenuPage.jsx';
+import OwnerCategoriesPage from '../pages/OwnerCategoriesPage.jsx';
 import OwnerDashboardPage from '../pages/OwnerDashboardPage.jsx';
+import OwnerProductsPage from '../pages/OwnerProductsPage.jsx';
+import OwnerStaffPage from '../pages/OwnerStaffPage.jsx';
+import OwnerTablesPage from '../pages/OwnerTablesPage.jsx';
 import RegisterOwnerPage from '../pages/RegisterOwnerPage.jsx';
 import StaffDashboardPage from '../pages/StaffDashboardPage.jsx';
 import SuperAdminDashboardPage from '../pages/SuperAdminDashboardPage.jsx';
@@ -34,6 +38,42 @@ function AppRoutes() {
         element={
           <RoleProtectedRoute allowRoles={['tenant_owner']}>
             <OwnerDashboardPage />
+          </RoleProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/:slug/owner/categories"
+        element={
+          <RoleProtectedRoute allowRoles={['tenant_owner']}>
+            <OwnerCategoriesPage />
+          </RoleProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/:slug/owner/products"
+        element={
+          <RoleProtectedRoute allowRoles={['tenant_owner']}>
+            <OwnerProductsPage />
+          </RoleProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/:slug/owner/tables"
+        element={
+          <RoleProtectedRoute allowRoles={['tenant_owner']}>
+            <OwnerTablesPage />
+          </RoleProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/:slug/owner/staff"
+        element={
+          <RoleProtectedRoute allowRoles={['tenant_owner']}>
+            <OwnerStaffPage />
           </RoleProtectedRoute>
         }
       />

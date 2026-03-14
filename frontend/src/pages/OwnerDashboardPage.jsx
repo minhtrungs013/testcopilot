@@ -1,349 +1,111 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 
-import { createCategoryBySlug, deleteCategoryBySlug, fetchCategoriesBySlug } from '../api/categoryApi.js';
-import { createProductBySlug, fetchProductsBySlug, updateProductStatusBySlug } from '../api/productApi.js';
-import { createTableBySlug, deleteTableBySlug, fetchTablesBySlug } from '../api/tableApi.js';
-import { createUserBySlug, fetchUsersBySlug, updateUserStatusBySlug } from '../api/userApi.js';
-import CustomerLayout from '../layouts/CustomerLayout.jsx';
+import OwnerShell from '../components/OwnerShell.jsx';
+import { fetchOwnerOrderStatsBySlug } from '../api/orderApi.js';
 import useAuthStore from '../store/authStore.js';
 
 function OwnerDashboardPage() {
   const { slug } = useParams();
   const token = useAuthStore((state) => state.token);
-  const logout = useAuthStore((state) => state.logout);
-
-  const [categories, setCategories] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [tables, setTables] = useState([]);
-  const [staffAccounts, setStaffAccounts] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [categoryName, setCategoryName] = useState('');
-  const [tableNumber, setTableNumber] = useState('');
-  const [staffForm, setStaffForm] = useState({
-    email: '',
-    password: '',
-    full_name: '',
-    role: 'staff',
-  });
-  const [productForm, setProductForm] = useState({
-    category_id: '',
-    name: '',
-    description: '',
-    price: '',
-  });
-
-  async function refreshData() {
-    try {
-      setError('');
-      const [categoryData, productData, tableData] = await Promise.all([
-        fetchCategoriesBySlug(slug, token),
-        fetchProductsBySlug(slug, token),
-        fetchTablesBySlug(slug, token),
-      ]);
-      const userData = await fetchUsersBySlug(slug, token);
-      setCategories(Array.isArray(categoryData) ? categoryData : []);
-      setProducts(Array.isArray(productData) ? productData : []);
-      setTables(Array.isArray(tableData) ? tableData : []);
-      setStaffAccounts(Array.isArray(userData) ? userData : []);
-    } catch (apiError) {
-      setError(apiError?.response?.data?.message || 'Failed to load owner dashboard data.');
-    }
-  }
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+      }),
+    []
+  );
 
   useEffect(() => {
-    refreshData();
-  }, [slug]);
+    let isMounted = true;
 
-  async function handleCreateCategory(event) {
-    event.preventDefault();
-    if (!categoryName.trim()) return;
-    try {
-      await createCategoryBySlug(slug, { name: categoryName.trim() }, token);
-      setCategoryName('');
-      refreshData();
-    } catch (apiError) {
-      setError(apiError?.response?.data?.message || 'Failed to create category.');
-    }
-  }
+    async function loadStats() {
+      if (!token) {
+        return;
+      }
 
-  async function handleDeleteCategory(categoryId) {
-    try {
-      await deleteCategoryBySlug(slug, categoryId, token);
-      refreshData();
-    } catch (apiError) {
-      setError(apiError?.response?.data?.message || 'Failed to delete category.');
-    }
-  }
-
-  async function handleCreateProduct(event) {
-    event.preventDefault();
-    try {
-      await createProductBySlug(
-        slug,
-        {
-          category_id: productForm.category_id,
-          name: productForm.name,
-          description: productForm.description,
-          price: Number(productForm.price),
-          status: 'active',
-          image: '',
-          options: [],
-        },
-        token
-      );
-      setProductForm({ category_id: '', name: '', description: '', price: '' });
-      refreshData();
-    } catch (apiError) {
-      setError(apiError?.response?.data?.message || 'Failed to create product.');
-    }
-  }
-
-  async function handleCreateTable(event) {
-    event.preventDefault();
-    const numericTable = Number(tableNumber);
-    if (!Number.isInteger(numericTable) || numericTable <= 0) {
-      setError('Table number must be a positive integer.');
-      return;
-    }
-
-    try {
+      setLoading(true);
       setError('');
-      await createTableBySlug(
-        slug,
-        {
-          table_number: numericTable,
-          status: 'available',
-        },
-        token
-      );
-      setTableNumber('');
-      refreshData();
-    } catch (apiError) {
-      setError(apiError?.response?.data?.message || 'Failed to create table.');
-    }
-  }
 
-  async function handleDeleteTable(tableId) {
-    try {
-      setError('');
-      await deleteTableBySlug(slug, tableId, token);
-      refreshData();
-    } catch (apiError) {
-      setError(apiError?.response?.data?.message || 'Failed to delete table.');
-    }
-  }
-
-  async function handleCreateStaffAccount(event) {
-    event.preventDefault();
-    if (!staffForm.email.trim() || !staffForm.password || !staffForm.full_name.trim()) {
-      setError('Please fill email, password, and full name for staff account.');
-      return;
+      try {
+        const data = await fetchOwnerOrderStatsBySlug(slug, token);
+        if (isMounted) {
+          setStats(data);
+        }
+      } catch (apiError) {
+        if (isMounted) {
+          setError(apiError?.response?.data?.message || 'Failed to load owner stats.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
     }
 
-    try {
-      setError('');
-      await createUserBySlug(
-        slug,
-        {
-          email: staffForm.email.trim(),
-          password: staffForm.password,
-          full_name: staffForm.full_name.trim(),
-          role: staffForm.role,
-        },
-        token
-      );
-      setStaffForm({ email: '', password: '', full_name: '', role: 'staff' });
-      refreshData();
-    } catch (apiError) {
-      setError(apiError?.response?.data?.message || 'Failed to create staff account.');
-    }
-  }
+    loadStats();
 
-  async function handleToggleStaffStatus(user) {
-    try {
-      setError('');
-      const nextStatus = user.status === 'active' ? 'inactive' : 'active';
-      await updateUserStatusBySlug(slug, user._id, nextStatus, token);
-      refreshData();
-    } catch (apiError) {
-      setError(apiError?.response?.data?.message || 'Failed to update staff status.');
-    }
-  }
+    return () => {
+      isMounted = false;
+    };
+  }, [slug, token]);
 
-  async function toggleProductStatus(product) {
-    try {
-      const next = product.status === 'active' ? 'out_of_stock' : 'active';
-      await updateProductStatusBySlug(slug, product._id, next, token);
-      refreshData();
-    } catch (apiError) {
-      setError(apiError?.response?.data?.message || 'Failed to update product status.');
-    }
-  }
+  const statCards = [
+    { label: 'Total Orders', value: stats?.total_orders ?? 0 },
+    { label: 'Paid Orders', value: stats?.paid_orders ?? 0 },
+    { label: 'Active Orders', value: stats?.active_orders ?? 0 },
+    { label: 'Total Revenue', value: currencyFormatter.format(stats?.total_revenue ?? 0) },
+  ];
 
   return (
-    <CustomerLayout>
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <header className="mb-5 flex items-center justify-between">
-          <div>
-            <p className="font-display text-xs font-bold uppercase tracking-[0.2em] text-brand-700">Tenant Owner</p>
-            <h1 className="font-display text-3xl font-extrabold text-gray-900">Owner Dashboard ({slug})</h1>
-          </div>
-          <button type="button" onClick={logout} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold">
-            Logout
-          </button>
-        </header>
+    <OwnerShell slug={slug} title="Owner Dashboard">
+      {error ? <p className="mb-4 text-sm font-semibold text-red-600">{error}</p> : null}
 
-        {error ? <p className="mb-4 text-sm font-semibold text-red-600">{error}</p> : null}
-
-        <section className="grid gap-4 md:grid-cols-2">
-          <div className="glass-card rounded-2xl p-4">
-            <h2 className="font-display text-xl font-bold">Categories</h2>
-            <form onSubmit={handleCreateCategory} className="mt-3 flex gap-2">
-              <input value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="New category name" className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-              <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white">Add</button>
-            </form>
-            <div className="mt-3 space-y-2">
-              {categories.map((category) => (
-                <div key={category._id} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-                  <span className="text-sm font-semibold">{category.name}</span>
-                  <button type="button" onClick={() => handleDeleteCategory(category._id)} className="text-xs font-bold text-red-600">Delete</button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="glass-card rounded-2xl p-4">
-            <h2 className="font-display text-xl font-bold">Create Product</h2>
-            <form onSubmit={handleCreateProduct} className="mt-3 space-y-2">
-              <select value={productForm.category_id} onChange={(e) => setProductForm((s) => ({ ...s, category_id: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" required>
-                <option value="">Select category</option>
-                {categories.map((category) => (
-                  <option key={category._id} value={category._id}>{category.name}</option>
-                ))}
-              </select>
-              <input value={productForm.name} onChange={(e) => setProductForm((s) => ({ ...s, name: e.target.value }))} placeholder="Product name" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" required />
-              <input value={productForm.description} onChange={(e) => setProductForm((s) => ({ ...s, description: e.target.value }))} placeholder="Description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-              <input value={productForm.price} onChange={(e) => setProductForm((s) => ({ ...s, price: e.target.value }))} placeholder="Price" type="number" min="0" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" required />
-              <button type="submit" className="w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white">Create Product</button>
-            </form>
-          </div>
+      {loading ? (
+        <section className="glass-card rounded-2xl p-5 text-sm text-gray-600">Loading statistics...</section>
+      ) : (
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {statCards.map((card) => (
+            <article key={card.label} className="glass-card rounded-2xl p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">{card.label}</p>
+              <p className="mt-2 font-display text-3xl font-black text-gray-900">{card.value}</p>
+            </article>
+          ))}
         </section>
+      )}
 
-        <section className="glass-card mt-5 rounded-2xl p-4">
-          <h2 className="font-display text-xl font-bold">Tables</h2>
-          <form onSubmit={handleCreateTable} className="mt-3 flex gap-2">
-            <input
-              value={tableNumber}
-              onChange={(event) => setTableNumber(event.target.value)}
-              placeholder="Table number"
-              type="number"
-              min="1"
-              className="w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            />
-            <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white">
-              Create Table
-            </button>
-          </form>
-
-          <div className="mt-3 space-y-2">
-            {tables.map((table) => (
-              <div key={table._id} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-                <div>
-                  <p className="text-sm font-semibold">Table {table.table_number}</p>
-                  <p className="text-xs text-gray-600">QR: {table.qr_code}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteTable(table._id)}
-                  className="rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-600"
-                >
-                  Delete
-                </button>
-              </div>
-            ))}
+      <section className="mt-5 grid gap-4 md:grid-cols-2">
+        <article className="glass-card rounded-2xl p-4">
+          <h2 className="font-display text-xl font-bold text-gray-900">Manage Menu</h2>
+          <p className="mt-1 text-sm text-gray-600">Create and organize categories, products, and stock status.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold hover:bg-gray-100" to={`/${slug}/owner/categories`}>
+              Go to Categories
+            </Link>
+            <Link className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold hover:bg-gray-100" to={`/${slug}/owner/products`}>
+              Go to Products
+            </Link>
           </div>
-        </section>
+        </article>
 
-        <section className="glass-card mt-5 rounded-2xl p-4">
-          <h2 className="font-display text-xl font-bold">Products</h2>
-          <div className="mt-3 space-y-2">
-            {products.map((product) => (
-              <div key={product._id} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-                <div>
-                  <p className="text-sm font-semibold">{product.name}</p>
-                  <p className="text-xs text-gray-600">{product.price?.toLocaleString()} VND | {product.status}</p>
-                </div>
-                <button type="button" onClick={() => toggleProductStatus(product)} className="rounded-lg border border-gray-300 px-2 py-1 text-xs font-bold">
-                  {product.status === 'active' ? 'Mark out_of_stock' : 'Mark active'}
-                </button>
-              </div>
-            ))}
+        <article className="glass-card rounded-2xl p-4">
+          <h2 className="font-display text-xl font-bold text-gray-900">Manage Operation</h2>
+          <p className="mt-1 text-sm text-gray-600">Manage tables with QR and staff accounts in dedicated pages.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold hover:bg-gray-100" to={`/${slug}/owner/tables`}>
+              Go to Tables
+            </Link>
+            <Link className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold hover:bg-gray-100" to={`/${slug}/owner/staff`}>
+              Go to Staff
+            </Link>
           </div>
-        </section>
-
-        <section className="glass-card mt-5 rounded-2xl p-4">
-          <h2 className="font-display text-xl font-bold">Staff Accounts</h2>
-          <form onSubmit={handleCreateStaffAccount} className="mt-3 grid gap-2 md:grid-cols-4">
-            <input
-              value={staffForm.email}
-              onChange={(event) => setStaffForm((state) => ({ ...state, email: event.target.value }))}
-              placeholder="Email"
-              type="email"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              required
-            />
-            <input
-              value={staffForm.password}
-              onChange={(event) => setStaffForm((state) => ({ ...state, password: event.target.value }))}
-              placeholder="Password"
-              type="password"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              minLength={6}
-              required
-            />
-            <input
-              value={staffForm.full_name}
-              onChange={(event) => setStaffForm((state) => ({ ...state, full_name: event.target.value }))}
-              placeholder="Full name"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              required
-            />
-            <div className="flex gap-2">
-              <select
-                value={staffForm.role}
-                onChange={(event) => setStaffForm((state) => ({ ...state, role: event.target.value }))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="staff">Staff</option>
-                <option value="kitchen">Kitchen</option>
-              </select>
-              <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white">
-                Add
-              </button>
-            </div>
-          </form>
-
-          <div className="mt-3 space-y-2">
-            {staffAccounts.map((user) => (
-              <div key={user._id} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-                <div>
-                  <p className="text-sm font-semibold">{user.full_name} ({user.role})</p>
-                  <p className="text-xs text-gray-600">{user.email} | {user.status}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleToggleStaffStatus(user)}
-                  className="rounded-lg border border-gray-300 px-2 py-1 text-xs font-bold"
-                >
-                  {user.status === 'active' ? 'Set inactive' : 'Set active'}
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      </main>
-    </CustomerLayout>
+        </article>
+      </section>
+    </OwnerShell>
   );
 }
 

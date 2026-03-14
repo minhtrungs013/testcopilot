@@ -224,8 +224,43 @@ async function updateOrderStatus(orderId, status, tenant) {
   return updated;
 }
 
+async function getOwnerOrderStats(tenant) {
+  const tenantId = getTenantId(tenant);
+
+  const [totalOrders, paidOrders, activeOrders, revenueData] = await Promise.all([
+    Order.countDocuments({ tenant_id: tenantId }),
+    Order.countDocuments({ tenant_id: tenantId, status: 'paid' }),
+    Order.countDocuments({
+      tenant_id: tenantId,
+      status: { $in: ['pending', 'confirmed', 'preparing', 'served'] },
+    }),
+    Order.aggregate([
+      {
+        $match: {
+          tenant_id: new mongoose.Types.ObjectId(tenantId),
+          status: 'paid',
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total_revenue: { $sum: '$total_amount' },
+        },
+      },
+    ]),
+  ]);
+
+  return {
+    total_orders: totalOrders,
+    paid_orders: paidOrders,
+    active_orders: activeOrders,
+    total_revenue: revenueData[0]?.total_revenue || 0,
+  };
+}
+
 export default {
   createOrder,
   listPendingOrders,
   updateOrderStatus,
+  getOwnerOrderStats,
 };
