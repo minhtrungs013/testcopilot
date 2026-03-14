@@ -24,6 +24,13 @@ export async function createCategoryBySlug(slug, payload, token) {
   return response.data;
 }
 
+export async function updateCategoryBySlug(slug, categoryId, payload, token) {
+  const response = await httpClient.put(`/${slug}/categories/${categoryId}`, payload, {
+    headers: authHeader(token),
+  });
+  return response.data;
+}
+
 export async function deleteCategoryBySlug(slug, categoryId, token) {
   const response = await httpClient.delete(`/${slug}/categories/${categoryId}`, {
     headers: authHeader(token),

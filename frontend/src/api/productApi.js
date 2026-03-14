@@ -24,13 +24,20 @@ export async function createProductBySlug(slug, payload, token) {
   return response.data;
 }
 
-export async function updateProductStatusBySlug(slug, productId, status, token) {
-  const response = await httpClient.put(
-    `/${slug}/products/${productId}`,
-    { status },
-    {
-      headers: authHeader(token),
-    }
-  );
+export async function updateProductBySlug(slug, productId, payload, token) {
+  const response = await httpClient.put(`/${slug}/products/${productId}`, payload, {
+    headers: authHeader(token),
+  });
   return response.data;
+}
+
+export async function deleteProductBySlug(slug, productId, token) {
+  const response = await httpClient.delete(`/${slug}/products/${productId}`, {
+    headers: authHeader(token),
+  });
+  return response.data;
+}
+
+export async function updateProductStatusBySlug(slug, productId, status, token) {
+  return updateProductBySlug(slug, productId, { status }, token);
 }

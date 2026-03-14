@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
+import ConfirmModal from '../components/ConfirmModal.jsx';
+import EntityForm from '../components/EntityForm.jsx';
+import Modal from '../components/Modal.jsx';
 import OwnerShell from '../components/OwnerShell.jsx';
 import {
   createCategoryBySlug,
   deleteCategoryBySlug,
   fetchCategoriesBySlug,
+  updateCategoryBySlug,
 } from '../api/categoryApi.js';
 import useAuthStore from '../store/authStore.js';
 
@@ -15,8 +19,21 @@ function OwnerCategoriesPage() {
 
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [categoryName, setCategoryName] = useState('');
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [createForm, setCreateForm] = useState({ name: '' });
+  const [editForm, setEditForm] = useState({ id: '', name: '' });
+
+  const categoryFields = [
+    {
+      name: 'name',
+      placeholder: 'Category name',
+      required: true,
+    },
+  ];
 
   async function refreshCategories() {
     if (!token) {
@@ -41,27 +58,68 @@ function OwnerCategoriesPage() {
     refreshCategories();
   }, [slug, token]);
 
+  function openCreateModal() {
+    setCreateForm({ name: '' });
+    setIsCreateOpen(true);
+  }
+
+  function openEditModal(category) {
+    setEditForm({ id: String(category._id), name: String(category.name || '') });
+    setIsEditOpen(true);
+  }
+
   async function handleCreateCategory(event) {
     event.preventDefault();
-    if (!categoryName.trim()) {
+    if (!createForm.name.trim()) {
       return;
     }
 
     try {
-      await createCategoryBySlug(slug, { name: categoryName.trim() }, token);
-      setCategoryName('');
+      setBusy(true);
+      await createCategoryBySlug(slug, { name: createForm.name.trim() }, token);
+      setIsCreateOpen(false);
+      setCreateForm({ name: '' });
       await refreshCategories();
     } catch (apiError) {
       setError(apiError?.response?.data?.message || 'Failed to create category.');
+    } finally {
+      setBusy(false);
     }
   }
 
-  async function handleDeleteCategory(categoryId) {
+  async function handleUpdateCategory(event) {
+    event.preventDefault();
+    if (!editForm.id || !editForm.name.trim()) {
+      return;
+    }
+
     try {
-      await deleteCategoryBySlug(slug, categoryId, token);
+      setBusy(true);
+      await updateCategoryBySlug(slug, editForm.id, { name: editForm.name.trim() }, token);
+      setIsEditOpen(false);
+      setEditForm({ id: '', name: '' });
+      await refreshCategories();
+    } catch (apiError) {
+      setError(apiError?.response?.data?.message || 'Failed to update category.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteCategory() {
+    if (!deleteTarget?._id) {
+      return;
+    }
+
+    try {
+      setBusy(true);
+      await deleteCategoryBySlug(slug, deleteTarget._id, token);
+      setDeleteTarget(null);
       await refreshCategories();
     } catch (apiError) {
       setError(apiError?.response?.data?.message || 'Failed to delete category.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -70,18 +128,16 @@ function OwnerCategoriesPage() {
       {error ? <p className="mb-4 text-sm font-semibold text-red-600">{error}</p> : null}
 
       <section className="glass-card rounded-2xl p-4">
-        <h2 className="font-display text-xl font-bold">Create Category</h2>
-        <form onSubmit={handleCreateCategory} className="mt-3 flex gap-2">
-          <input
-            value={categoryName}
-            onChange={(event) => setCategoryName(event.target.value)}
-            placeholder="New category name"
-            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
-          />
-          <button type="submit" className="rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white">
-            Add
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-display text-xl font-bold">Create Category</h2>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="rounded-lg bg-gray-900 px-3 py-2 text-sm font-bold text-white"
+          >
+            Add Category
           </button>
-        </form>
+        </div>
       </section>
 
       <section className="glass-card mt-5 rounded-2xl p-4">
@@ -100,17 +156,60 @@ function OwnerCategoriesPage() {
               className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"
             >
               <span className="text-sm font-semibold">{category.name}</span>
-              <button
-                type="button"
-                onClick={() => handleDeleteCategory(category._id)}
-                className="rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-600"
-              >
-                Delete
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => openEditModal(category)}
+                  className="rounded-lg border border-blue-300 px-2 py-1 text-xs font-bold text-blue-700"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(category)}
+                  className="rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-600"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>
       </section>
+
+      <Modal isOpen={isCreateOpen} title="Add Category" onClose={() => (busy ? null : setIsCreateOpen(false))}>
+        <EntityForm
+          fields={categoryFields}
+          values={createForm}
+          onChange={(name, value) => setCreateForm((state) => ({ ...state, [name]: value }))}
+          submitLabel="Create"
+          onSubmit={handleCreateCategory}
+          onCancel={() => setIsCreateOpen(false)}
+          disabled={busy}
+        />
+      </Modal>
+
+      <Modal isOpen={isEditOpen} title="Edit Category" onClose={() => (busy ? null : setIsEditOpen(false))}>
+        <EntityForm
+          fields={categoryFields}
+          values={editForm}
+          onChange={(name, value) => setEditForm((state) => ({ ...state, [name]: value }))}
+          submitLabel="Save"
+          onSubmit={handleUpdateCategory}
+          onCancel={() => setIsEditOpen(false)}
+          disabled={busy}
+        />
+      </Modal>
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title="Delete Category"
+        message={`Delete category ${deleteTarget?.name || ''}?`}
+        confirmLabel="Delete"
+        onConfirm={handleDeleteCategory}
+        onClose={() => setDeleteTarget(null)}
+        busy={busy}
+      />
     </OwnerShell>
   );
 }
